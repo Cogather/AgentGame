@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"ocProxy/config"
-	"ocProxy/handler"
-	"ocProxy/service"
+	gatewayconfig "ocProxy/gateway/config"
+	"ocProxy/gateway/handler"
+	gatewayservice "ocProxy/gateway/service"
 
 	"github.com/gorilla/mux"
 )
@@ -24,13 +24,13 @@ func main() {
 		cfgPath = os.Args[1]
 	}
 
-	cfg, err := config.LoadConfig(cfgPath)
+	cfg, err := gatewayconfig.LoadConfig(cfgPath)
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
 
-	// 创建服务
-	proxyService := service.NewProxyService(cfg)
+	// 初始化 Gateway 模块（模型访问）
+	proxyService := gatewayservice.NewProxyService(cfg)
 
 	// 创建处理器
 	h, err := handler.NewHandler(proxyService, cfg)

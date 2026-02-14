@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"ocProxy/client"
-	"ocProxy/config"
+	"ocProxy/gateway/client"
+	"ocProxy/gateway/config"
 
 	"github.com/sashabaranov/go-openai"
 )

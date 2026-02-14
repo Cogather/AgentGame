@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"strings"
 
-	"ocProxy/config"
-	"ocProxy/internal/logger"
-	"ocProxy/internal/skill"
-	"ocProxy/service"
+	"ocProxy/gateway/config"
+	"ocProxy/gateway/internal/logger"
+	"ocProxy/gateway/internal/skill"
+	"ocProxy/gateway/service"
+	gamerank "ocProxy/game/rank"
+	gameuser "ocProxy/game/user"
 
 	"github.com/gorilla/mux"
 	"github.com/sashabaranov/go-openai"
@@ -24,6 +26,10 @@ type Handler struct {
 	promptLogger   *logger.PromptLogger
 	responseLogger *logger.ResponseLogger
 	skillDirs      []string // 技能目录列表，每个目录下 SKILL.md 内容作为一条 user 消息注入 system 之后
+	userManager    *gameuser.UserManager
+	userHandler    *gameuser.Handler
+	rankManager    *gamerank.RankManager
+	rankHandler    *gamerank.Handler
 }
 
 // NewHandler 创建新的处理器。若配置中未指定日志文件名，则不创建对应 logger，不保存 prompt/response。
@@ -58,11 +64,29 @@ func NewHandler(svc *service.ProxyService, cfg *config.Config) (*Handler, error)
 		}
 	}
 
+	// 初始化用户管理器
+	userManager, err := gameuser.NewUserManager("workspace")
+	if err != nil {
+		return nil, fmt.Errorf("初始化用户管理器失败: %w", err)
+	}
+	userHandler := gameuser.NewHandler(userManager)
+
+	// 初始化排行榜管理器
+	rankManager, err := gamerank.NewRankManager("rankdata")
+	if err != nil {
+		return nil, fmt.Errorf("初始化排行榜管理器失败: %w", err)
+	}
+	rankHandler := gamerank.NewHandler(rankManager)
+
 	return &Handler{
 		service:        svc,
 		promptLogger:   promptLogger,
 		responseLogger: responseLogger,
 		skillDirs:      skillDirs,
+		userManager:    userManager,
+		userHandler:    userHandler,
+		rankManager:    rankManager,
+		rankHandler:    rankHandler,
 	}, nil
 }
 
@@ -235,6 +259,16 @@ func (h *Handler) SetupRoutes(r *mux.Router) {
 	r.HandleFunc("/v1/chat/completions", h.ChatCompletion).Methods("POST")
 	// Anthropic 协议支持
 	r.HandleFunc("/v1/messages", h.AnthropicMessages).Methods("POST")
+
+	// 用户管理路由
+	if h.userHandler != nil {
+		h.userHandler.SetupRoutes(r)
+	}
+
+	// 排行榜路由
+	if h.rankHandler != nil {
+		h.rankHandler.SetupRoutes(r)
+	}
 }
 
 // Close 关闭处理器，释放资源
@@ -246,4 +280,14 @@ func (h *Handler) Close() error {
 		return h.responseLogger.Close()
 	}
 	return nil
+}
+
+// GetRankManager 获取排行榜管理器（供内部业务逻辑使用）
+func (h *Handler) GetRankManager() *gamerank.RankManager {
+	return h.rankManager
+}
+
+// GetUserManager 获取用户管理器（供内部业务逻辑使用）
+func (h *Handler) GetUserManager() *gameuser.UserManager {
+	return h.userManager
 }

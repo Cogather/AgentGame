@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"ocProxy/client"
+	"ocProxy/gateway/client"
 	"ocProxy/tools"
 
 	"github.com/sashabaranov/go-openai"

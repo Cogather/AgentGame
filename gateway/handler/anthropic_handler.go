@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"strings"
 
-	"ocProxy/client"
-	"ocProxy/config"
-	"ocProxy/service"
+	"ocProxy/gateway/client"
+	"ocProxy/gateway/config"
+	"ocProxy/gateway/service"
 
 	"github.com/sashabaranov/go-openai"
 )
