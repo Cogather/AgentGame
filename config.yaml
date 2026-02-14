@@ -1,0 +1,39 @@
+# AI 代理服务配置
+# model_name: 用户请求时使用的模型名，用于判断 chat/work 路由
+# model_id: 实际请求远端 API 的模型 ID
+# preprocess_enabled: 是否启用前处理（工作模型请求时先用聊天模型判断是否需要工具调用，true=启用，false=直接使用工作模型）
+preprocess_enabled: true
+
+chat_model:
+  base_url: "https://api.deepseek.com"
+  api_key: "sk-a6b323ff062d46ee97361e4f4dd6983c"
+  model_name: "chat"
+  model_id: "deepseek-chat"
+  api_format: "openai"
+
+work_model:
+  base_url: "https://api.deepseek.com"
+  api_key: "sk-a6b323ff062d46ee97361e4f4dd6983c"
+  model_name: "work"
+  model_id: "deepseek-chat"
+  api_format: "openai"
+
+# work_model:
+#   base_url: "https://api.moonshot.cn/v1"
+#   api_key: "sk-obhQjSqdaUPLxO3GZFi84vdncr3xHyHNlyl416SSpad2vHNM"
+#   model_name: "work"
+#   model_id: "kimi-k2.5"
+
+server:
+  port: 8080
+  host: "0.0.0.0"
+
+# 技能目录：从每个目录（含子目录）读取所有 SKILL.md
+skill_dirs:
+  - "C:/Users/Administrator/.openclaw/workspace/skills/iot-fast-usage"
+  - "C:/Users/Administrator/.openclaw/workspace/skills/send-email"
+
+# 日志文件：不配置或文件名为空则不保存 prompt/response
+logging:
+   prompt_log_file: "prompt.jsonl"
+   response_log_file: "response.jsonl"
