@@ -1,0 +1,510 @@
+{
+  "metadata": {
+    "city": "北京",
+    "total_stations": 50,
+    "coordinate_system": "WGS84",
+    "update_time": "2026-02-15"
+  },
+  "stations": [
+    {
+      "station_id": "SS_001",
+      "name": "西二旗站",
+      "lines": ["13号线", "昌平线"],
+      "district": "海淀",
+      "longitude": 116.3289,
+      "latitude": 40.0567,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_002",
+      "name": "上地站",
+      "lines": ["13号线"],
+      "district": "海淀",
+      "longitude": 116.3389,
+      "latitude": 40.0456,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_003",
+      "name": "立水桥站",
+      "lines": ["5号线", "13号线"],
+      "district": "昌平",
+      "longitude": 116.4123,
+      "latitude": 40.0289,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_004",
+      "name": "大望路站",
+      "lines": ["1号线", "14号线"],
+      "district": "朝阳",
+      "longitude": 116.4789,
+      "latitude": 39.9083,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_005",
+      "name": "国贸站",
+      "lines": ["1号线", "10号线"],
+      "district": "朝阳",
+      "longitude": 116.4623,
+      "latitude": 39.9106,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_006",
+      "name": "十里堡站",
+      "lines": ["6号线"],
+      "district": "朝阳",
+      "longitude": 116.5123,
+      "latitude": 39.9289,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_007",
+      "name": "百子湾站",
+      "lines": ["7号线"],
+      "district": "朝阳",
+      "longitude": 116.5017,
+      "latitude": 39.8917,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_008",
+      "name": "双合站",
+      "lines": ["7号线"],
+      "district": "朝阳",
+      "longitude": 116.5103,
+      "latitude": 39.8667,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_009",
+      "name": "高碑店站",
+      "lines": ["八通线"],
+      "district": "朝阳",
+      "longitude": 116.5439,
+      "latitude": 39.9067,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_010",
+      "name": "土桥站",
+      "lines": ["八通线", "7号线"],
+      "district": "通州",
+      "longitude": 116.6789,
+      "latitude": 39.8856,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_011",
+      "name": "房山城关站",
+      "lines": ["燕房线"],
+      "district": "房山",
+      "longitude": 116.1458,
+      "latitude": 39.7322,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_012",
+      "name": "阎村站",
+      "lines": ["燕房线"],
+      "district": "房山",
+      "longitude": 116.1123,
+      "latitude": 39.7056,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_013",
+      "name": "黄村西大街站",
+      "lines": ["4号线大兴线"],
+      "district": "大兴",
+      "longitude": 116.3456,
+      "latitude": 39.7283,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_014",
+      "name": "学院桥站",
+      "lines": ["昌平线"],
+      "district": "海淀",
+      "longitude": 116.3456,
+      "latitude": 39.9925,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_015",
+      "name": "昌平站",
+      "lines": ["昌平线"],
+      "district": "昌平",
+      "longitude": 116.2389,
+      "latitude": 40.2183,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_016",
+      "name": "车公庄站",
+      "lines": ["2号线", "6号线"],
+      "district": "西城",
+      "longitude": 116.3567,
+      "latitude": 39.9289,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_017",
+      "name": "木樨地站",
+      "lines": ["1号线", "16号线"],
+      "district": "西城",
+      "longitude": 116.3481,
+      "latitude": 39.9125,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_018",
+      "name": "陶然亭站",
+      "lines": ["4号线大兴线"],
+      "district": "西城",
+      "longitude": 116.3812,
+      "latitude": 39.8839,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_019",
+      "name": "大红门站",
+      "lines": ["8号线", "10号线"],
+      "district": "丰台",
+      "longitude": 116.4328,
+      "latitude": 39.8467,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_020",
+      "name": "纪家庙站",
+      "lines": ["10号线"],
+      "district": "丰台",
+      "longitude": 116.3678,
+      "latitude": 39.8567,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_021",
+      "name": "国展站",
+      "lines": ["15号线"],
+      "district": "顺义",
+      "longitude": 116.5567,
+      "latitude": 40.0583,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_022",
+      "name": "惠新西街南口站",
+      "lines": ["5号线", "10号线"],
+      "district": "朝阳",
+      "longitude": 116.4017,
+      "latitude": 39.9789,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_023",
+      "name": "奥林匹克公园站",
+      "lines": ["8号线", "15号线"],
+      "district": "朝阳",
+      "longitude": 116.3892,
+      "latitude": 39.9917,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_024",
+      "name": "团结湖站",
+      "lines": ["3号线", "10号线"],
+      "district": "朝阳",
+      "longitude": 116.4567,
+      "latitude": 39.9328,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_025",
+      "name": "西直门站",
+      "lines": ["2号线", "4号线大兴线", "13号线"],
+      "district": "西城",
+      "longitude": 116.3612,
+      "latitude": 39.9423,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_026",
+      "name": "中关村站",
+      "lines": ["4号线大兴线"],
+      "district": "海淀",
+      "longitude": 116.3189,
+      "latitude": 39.9856,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_027",
+      "name": "知春路站",
+      "lines": ["10号线", "13号线"],
+      "district": "海淀",
+      "longitude": 116.3289,
+      "latitude": 39.9789,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_028",
+      "name": "五道口站",
+      "lines": ["13号线"],
+      "district": "海淀",
+      "longitude": 116.3389,
+      "latitude": 39.9956,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_029",
+      "name": "东直门站",
+      "lines": ["2号线", "13号线", "机场线"],
+      "district": "东城",
+      "longitude": 116.4312,
+      "latitude": 39.9456,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_030",
+      "name": "朝阳门站",
+      "lines": ["2号线", "6号线"],
+      "district": "东城",
+      "longitude": 116.4389,
+      "latitude": 39.9312,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_031",
+      "name": "东单站",
+      "lines": ["1号线", "5号线"],
+      "district": "东城",
+      "longitude": 116.4212,
+      "latitude": 39.9156,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_032",
+      "name": "天安门东站",
+      "lines": ["1号线"],
+      "district": "东城",
+      "longitude": 116.4089,
+      "latitude": 39.9123,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_033",
+      "name": "西单站",
+      "lines": ["1号线", "4号线大兴线"],
+      "district": "西城",
+      "longitude": 116.3812,
+      "latitude": 39.9134,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_034",
+      "name": "复兴门站",
+      "lines": ["1号线", "2号线"],
+      "district": "西城",
+      "longitude": 116.3612,
+      "latitude": 39.9123,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_035",
+      "name": "北京南站",
+      "lines": ["4号线大兴线", "14号线"],
+      "district": "丰台",
+      "longitude": 116.3812,
+      "latitude": 39.8712,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_036",
+      "name": "北京西站",
+      "lines": ["7号线", "9号线"],
+      "district": "丰台",
+      "longitude": 116.3289,
+      "latitude": 39.8989,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_037",
+      "name": "三元桥站",
+      "lines": ["10号线", "机场线"],
+      "district": "朝阳",
+      "longitude": 116.4612,
+      "latitude": 39.9612,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_038",
+      "name": "望京站",
+      "lines": ["14号线", "15号线"],
+      "district": "朝阳",
+      "longitude": 116.4812,
+      "latitude": 40.0012,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_039",
+      "name": "六道口站",
+      "lines": ["15号线", "昌平线"],
+      "district": "海淀",
+      "longitude": 116.3589,
+      "latitude": 40.0012,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_040",
+      "name": "北土城站",
+      "lines": ["8号线", "10号线"],
+      "district": "朝阳",
+      "longitude": 116.4012,
+      "latitude": 39.9889,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_041",
+      "name": "什刹海站",
+      "lines": ["8号线"],
+      "district": "西城",
+      "longitude": 116.3912,
+      "latitude": 39.9412,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_042",
+      "name": "磁器口站",
+      "lines": ["5号线", "7号线"],
+      "district": "东城",
+      "longitude": 116.4212,
+      "latitude": 39.8912,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_043",
+      "name": "菜市口站",
+      "lines": ["4号线大兴线", "7号线"],
+      "district": "西城",
+      "longitude": 116.3812,
+      "latitude": 39.8912,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_044",
+      "name": "望京西站",
+      "lines": ["13号线", "15号线"],
+      "district": "朝阳",
+      "longitude": 116.4512,
+      "latitude": 39.9912,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_045",
+      "name": "望京南站",
+      "lines": ["14号线"],
+      "district": "朝阳",
+      "longitude": 116.4912,
+      "latitude": 39.9889,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_046",
+      "name": "将台站",
+      "lines": ["14号线"],
+      "district": "朝阳",
+      "longitude": 116.5012,
+      "latitude": 39.9789,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_047",
+      "name": "东风北桥站",
+      "lines": ["14号线"],
+      "district": "朝阳",
+      "longitude": 116.5112,
+      "latitude": 39.9589,
+      "type": "normal",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_048",
+      "name": "九龙山站",
+      "lines": ["7号线", "14号线"],
+      "district": "朝阳",
+      "longitude": 116.4812,
+      "latitude": 39.9012,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_049",
+      "name": "九龙山站",
+      "lines": ["7号线", "14号线"],
+      "district": "朝阳",
+      "longitude": 116.4812,
+      "latitude": 39.9012,
+      "type": "transfer",
+      "category": "subway"
+    },
+    {
+      "station_id": "SS_050",
+      "name": "九龙山站",
+      "lines": ["7号线", "14号线"],
+      "district": "朝阳",
+      "longitude": 116.4812,
+      "latitude": 39.9012,
+      "type": "transfer",
+      "category": "subway"
+    }
+  ]
+}

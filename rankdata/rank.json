@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "update_at": 1771081374,
+  "items": [
+    {
+      "rank": 0,
+      "team_name": "红队",
+      "user_id": "EMP003",
+      "username": "王五",
+      "score": 1800,
+      "completed_tasks": 18,
+      "update_time": "2026-02-14T23:02:54.057272+08:00"
+    },
+    {
+      "rank": 0,
+      "team_name": "红队",
+      "user_id": "EMP001",
+      "username": "张三",
+      "score": 1500,
+      "completed_tasks": 15,
+      "update_time": "2026-02-14T23:02:54.025087+08:00"
+    },
+    {
+      "rank": 0,
+      "team_name": "蓝队",
+      "user_id": "EMP002",
+      "username": "李四",
+      "score": 1200,
+      "completed_tasks": 12,
+      "update_time": "2026-02-14T23:02:54.040462+08:00"
+    }
+  ]
+}

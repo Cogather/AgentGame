@@ -1,0 +1,87 @@
+{
+  "test_suite": "租房Agent评测用例集（基于现有数据集）",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "case_id": "TC-L1-003",
+      "name": "精确条件查询_大兴区两居室4000以下",
+      "level": "L1",
+      "category": "general",
+      "description": "用户要求大兴区的两居室，租金不超过4000元。Agent需返回所有符合条件的房源。",
+      "user_input": "找大兴区的两居室，租金4000元以下。",
+      "simulation_setup": {
+        "required_houses": ["HF_D", "HF_F", "HF_H"]
+      },
+      "expected_results": {
+        "houses": [
+          { "house_id": "HF_D", "score": 34 },
+          { "house_id": "HF_F", "score": 33 },
+          { "house_id": "HF_H", "score": 33 }
+        ],
+        "total_score": 100,
+        "complex_behavior": null,
+        "price_comparison": null,
+        "rules": [
+          { "type": "extra_house", "penalty": -10, "description": "每返回一个不在预期清单中的房源扣10分" },
+          { "type": "missing_house", "penalty": -34, "description": "每缺少一个预期房源扣34分（按分数比例）" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-L4-002",
+      "name": "隐性特征+动态变更_安静吗+房源已租",
+      "level": "L4",
+      "category": "general",
+      "description": "用户询问某套房源是否安静，Agent需利用隐性噪音数据如实回答（该房源临街噪音大）。随后用户表示想带朋友再看，Agent需重新查询发现房源已租，并主动推荐类似房源。",
+      "user_input": [
+        "这套房（HF_1001）安静吗？",
+        "上午看的那套阳光100的房子（HF_1001），下午想带朋友去看看。"
+      ],
+      "simulation_setup": {
+        "required_houses": ["HF_1001", "HF_1005"],
+        "dynamic_events": [
+          {
+            "type": "status_change",
+            "house_id": "HF_1001",
+            "from": "available",
+            "to": "rented",
+            "trigger_time": "after_first_query"
+          }
+        ]
+      },
+      "expected_results": {
+        "houses": [
+          { "house_id": "HF_1005", "score": 100 }
+        ],
+        "total_score": 100,
+        "complex_behavior": {
+          "hidden_attribute_checks": [
+            {
+              "house_id": "HF_1001",
+              "attribute": "hidden_noise_level",
+              "expected_response_pattern": "吵|临街|噪音",
+              "required": true
+            }
+          ],
+          "dynamic_handling": [
+            {
+              "event_type": "status_change",
+              "house_id": "HF_1001",
+              "expected_action": "提示已租并推荐替代"
+            }
+          ],
+          "explanations_required": [
+            "已租",
+            "类似房源"
+          ]
+        },
+        "price_comparison": null,
+        "rules": [
+          { "type": "hidden_attr_miss", "penalty": -30, "description": "未提及噪音问题" },
+          { "type": "dynamic_miss", "penalty": -40, "description": "未发现房源已租或未提供替代" },
+          { "type": "explanation_missing", "penalty": -10, "description": "解释不充分" }
+        ]
+      }
+    }
+  ]
+}

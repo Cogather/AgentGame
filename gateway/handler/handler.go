@@ -9,12 +9,13 @@ import (
 	"net/http"
 	"strings"
 
+	"ocProxy/fake_app"
+	gamerank "ocProxy/game/rank"
+	gameuser "ocProxy/game/user"
 	"ocProxy/gateway/config"
 	"ocProxy/gateway/internal/logger"
 	"ocProxy/gateway/internal/skill"
 	"ocProxy/gateway/service"
-	gamerank "ocProxy/game/rank"
-	gameuser "ocProxy/game/user"
 
 	"github.com/gorilla/mux"
 	"github.com/sashabaranov/go-openai"
@@ -22,14 +23,18 @@ import (
 
 // Handler HTTP 请求处理器
 type Handler struct {
-	service        *service.ProxyService
-	promptLogger   *logger.PromptLogger
-	responseLogger *logger.ResponseLogger
-	skillDirs      []string // 技能目录列表，每个目录下 SKILL.md 内容作为一条 user 消息注入 system 之后
-	userManager    *gameuser.UserManager
-	userHandler    *gameuser.Handler
-	rankManager    *gamerank.RankManager
-	rankHandler    *gamerank.Handler
+	service         *service.ProxyService
+	promptLogger    *logger.PromptLogger
+	responseLogger  *logger.ResponseLogger
+	skillDirs       []string // 技能目录列表，每个目录下 SKILL.md 内容作为一条 user 消息注入 system 之后
+	userManager     *gameuser.UserManager
+	userHandler     *gameuser.Handler
+	rankManager     *gamerank.RankManager
+	rankHandler     *gamerank.Handler
+	landmarkManager *fake_app.LandmarkManager
+	landmarkHandler *LandmarkHandler
+	houseManager    *fake_app.HouseManager
+	houseHandler    *HouseHandler
 }
 
 // NewHandler 创建新的处理器。若配置中未指定日志文件名，则不创建对应 logger，不保存 prompt/response。
@@ -78,15 +83,41 @@ func NewHandler(svc *service.ProxyService, cfg *config.Config) (*Handler, error)
 	}
 	rankHandler := gamerank.NewHandler(rankManager)
 
+	// 初始化地标数据管理器（可选，失败不影响其他功能）
+	var landmarkManager *fake_app.LandmarkManager
+	var landmarkHandler *LandmarkHandler
+	landmarkManager, err = fake_app.NewLandmarkManager("fake_app/data")
+	if err != nil {
+		log.Printf("[警告] 初始化地标管理器失败: %v，地标查询功能不可用", err)
+	} else {
+		landmarkHandler = NewLandmarkHandler(landmarkManager)
+		log.Printf("[LandmarkManager] 初始化完成，共 %d 个地标", len(landmarkManager.GetAll()))
+	}
+
+	// 初始化房屋管理器（可选，失败不影响其他功能）
+	var houseManager *fake_app.HouseManager
+	var houseHandler *HouseHandler
+	houseManager, err = fake_app.NewHouseManager("fake_app/data")
+	if err != nil {
+		log.Printf("[警告] 初始化房屋管理器失败: %v，房屋查询功能不可用", err)
+	} else {
+		houseHandler = NewHouseHandler(houseManager, landmarkManager)
+		log.Printf("[HouseManager] 初始化完成，共 %d 套房源", len(houseManager.GetAll()))
+	}
+
 	return &Handler{
-		service:        svc,
-		promptLogger:   promptLogger,
-		responseLogger: responseLogger,
-		skillDirs:      skillDirs,
-		userManager:    userManager,
-		userHandler:    userHandler,
-		rankManager:    rankManager,
-		rankHandler:    rankHandler,
+		service:         svc,
+		promptLogger:    promptLogger,
+		responseLogger:  responseLogger,
+		skillDirs:       skillDirs,
+		userManager:     userManager,
+		userHandler:     userHandler,
+		rankManager:     rankManager,
+		rankHandler:     rankHandler,
+		landmarkManager: landmarkManager,
+		landmarkHandler: landmarkHandler,
+		houseManager:    houseManager,
+		houseHandler:    houseHandler,
 	}, nil
 }
 
@@ -269,6 +300,16 @@ func (h *Handler) SetupRoutes(r *mux.Router) {
 	if h.rankHandler != nil {
 		h.rankHandler.SetupRoutes(r)
 	}
+
+	// 地标数据路由
+	if h.landmarkHandler != nil {
+		h.landmarkHandler.SetupLandmarkRoutes(r)
+	}
+
+	// 房屋数据路由
+	if h.houseHandler != nil {
+		h.houseHandler.SetupHouseRoutes(r)
+	}
 }
 
 // Close 关闭处理器，释放资源
@@ -290,4 +331,14 @@ func (h *Handler) GetRankManager() *gamerank.RankManager {
 // GetUserManager 获取用户管理器（供内部业务逻辑使用）
 func (h *Handler) GetUserManager() *gameuser.UserManager {
 	return h.userManager
+}
+
+// GetLandmarkManager 获取地标管理器（供内部业务逻辑使用）
+func (h *Handler) GetLandmarkManager() *fake_app.LandmarkManager {
+	return h.landmarkManager
+}
+
+// GetHouseManager 获取房屋管理器（供内部业务逻辑使用）
+func (h *Handler) GetHouseManager() *fake_app.HouseManager {
+	return h.houseManager
 }

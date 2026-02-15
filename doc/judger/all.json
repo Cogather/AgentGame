@@ -1,0 +1,462 @@
+{
+  "test_suite": "租房Agent评测用例集",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "case_id": "TC-L2-001",
+      "name": "模糊意图理解_离地铁近+精装+民水民电",
+      "level": "L2",
+      "category": "general",
+      "description": "用户使用口语化描述：离地铁近、精装、民水民电。Agent需将模糊词转化为量化条件（近地铁≤800米、精装、住宅性质），并返回符合条件的房源。",
+      "user_input": "我想找个离地铁近的，最好是精装，民水民电。",
+      "simulation_setup": {
+        "required_houses": ["HF_A", "HF_B", "HF_C", "HF_D"]
+      },
+      "expected_results": {
+        "houses": [
+          { "house_id": "HF_A", "score": 100 }
+        ],
+        "total_score": 100,
+        "complex_behavior": {
+          "explanations_required": [
+            "地铁",
+            "精装",
+            "民水民电"
+          ]
+        },
+        "price_comparison": null,
+        "rules": [
+          { "type": "missing_house", "penalty": -50, "description": "缺少预期房源HF_A" },
+          { "type": "extra_house", "penalty": -25, "description": "多返回一个不符合条件的房源" },
+          { "type": "explanation_missing", "penalty": -10, "description": "未在推荐理由中提及关键条件" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-L3-001",
+      "name": "多条件权衡_西二旗通勤+预算5000+独卫主卧",
+      "level": "L3",
+      "category": "general",
+      "description": "用户要求在30分钟内通勤、预算5000、独卫主卧，若无则放宽至45分钟。Agent应优先严格查询，无结果后放宽通勤，推荐通勤35分钟、价格4800的房源，并解释。",
+      "user_input": "我在西二旗上班，预算5000元，想找个30分钟内通勤的独卫主卧。如果没有，通勤放宽到45分钟也行。",
+      "simulation_setup": {
+        "required_houses": ["HF_X1", "HF_X2", "HF_X3", "HF_X4"]
+      },
+      "expected_results": {
+        "houses": [
+          { "house_id": "HF_X2", "score": 100 }
+        ],
+        "total_score": 100,
+        "complex_behavior": {
+          "ranking_required": true,
+          "explanations_required": [
+            "35分钟",
+            "放宽",
+            "预算"
+          ],
+          "priority": ["通勤", "价格"]
+        },
+        "price_comparison": null,
+        "rules": [
+          { "type": "wrong_ranking", "penalty": -30, "description": "未按预期推荐HF_X2或排序错误" },
+          { "type": "explanation_missing", "penalty": -15, "description": "未解释放宽通勤或未提及关键信息" },
+          { "type": "no_compromise", "penalty": -50, "description": "未尝试放宽条件直接返回空结果" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-L4-001",
+      "name": "隐性特征+动态变更_安静吗+房源已租",
+      "level": "L4",
+      "category": "general",
+      "description": "用户询问某套房源是否安静，Agent需利用隐性噪音数据如实回答（该房源临街噪音大）。随后用户表示想带朋友再看，Agent需重新查询发现房源已租，并主动推荐类似房源。",
+      "user_input": [
+        "这套房（HF_1001）安静吗？",
+        "上午看的那套阳光100的房子（HF_1001），下午想带朋友去看看。"
+      ],
+      "simulation_setup": {
+        "required_houses": ["HF_1001", "HF_1005"],
+        "dynamic_events": [
+          {
+            "type": "status_change",
+            "house_id": "HF_1001",
+            "from": "available",
+            "to": "rented",
+            "trigger_time": "after_first_query"
+          }
+        ]
+      },
+      "expected_results": {
+        "houses": [
+          { "house_id": "HF_1005", "score": 70 }
+        ],
+        "total_score": 100,
+        "complex_behavior": {
+          "hidden_attribute_checks": [
+            {
+              "house_id": "HF_1001",
+              "attribute": "hidden_noise_level",
+              "expected_response_pattern": "吵|临街|噪音",
+              "required": true
+            }
+          ],
+          "dynamic_handling": [
+            {
+              "event_type": "status_change",
+              "house_id": "HF_1001",
+              "expected_action": "提示已租并推荐替代"
+            }
+          ],
+          "explanations_required": [
+            "已租",
+            "类似房源"
+          ]
+        },
+        "price_comparison": null,
+        "rules": [
+          { "type": "hidden_attr_miss", "penalty": -30, "description": "未提及噪音问题" },
+          { "type": "dynamic_miss", "penalty": -40, "description": "未发现房源已租或未提供替代" },
+          { "type": "explanation_missing", "penalty": -10, "description": "解释不充分" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-PRICE-005",
+      "name": "议价策略生成",
+      "level": "L4",
+      "category": "price_comparison",
+      "description": "用户准备与房东议价，希望Agent基于比价结果给出具体的议价策略和话术建议。",
+      "user_input": "我准备跟房东谈这套HF_4001的价格，挂牌价9000元，你觉得能砍多少？怎么谈比较好？",
+      "simulation_setup": {
+        "required_houses": ["HF_4001"],
+        "platform_data": {
+          "anjuke": {
+            "HF_4001": { "price": 9000, "community": "当代城市家园", "bedrooms": 2, "area": 88 }
+          },
+          "58": {
+            "HF_4001": { "price": 8900, "community": "当代城市家园", "bedrooms": 2, "area": 88 }
+          },
+          "fangtianxia": {
+            "HF_4001": { "price": 8800, "community": "当代城市家园", "bedrooms": 2, "area": 88 }
+          },
+          "lianjia": {
+            "similar_house_1": { "price": 8300, "community": "当代城市家园", "bedrooms": 2, "area": 85 },
+            "similar_house_2": { "price": 8500, "community": "当代城市家园", "bedrooms": 2, "area": 87 }
+          }
+        },
+        "historical_prices": {
+          "community": "当代城市家园",
+          "two_bedroom_avg": 8400,
+          "listings_count": 12,
+          "avg_days_on_market": 18
+        }
+      },
+      "expected_results": {
+        "houses": [],
+        "total_score": 100,
+        "complex_behavior": null,
+        "price_comparison": {
+          "target_house_id": "HF_4001",
+          "expected_price_analysis": {
+            "platform_prices": {
+              "anjuke": 9000,
+              "58": 8900,
+              "fangtianxia": 8800
+            },
+            "market_avg_price": 8400,
+            "price_level": "偏高",
+            "negotiation_room": true,
+            "suggested_negotiation_range": {
+              "min": 500,
+              "max": 700
+            }
+          },
+          "expected_response_patterns": [
+            "建议砍价",
+            "500到700",
+            "市场均价8400",
+            "议价话术",
+            "同小区类似房源",
+            "挂牌时间"
+          ],
+          "requires_trend_analysis": true,
+          "requires_recommendation": true
+        },
+        "rules": [
+          { "type": "missing_negotiation_amount", "penalty": -25, "description": "未给出具体议价幅度" },
+          { "type": "unreasonable_amount", "penalty": -20, "description": "议价幅度不合理" },
+          { "type": "missing_talking_points", "penalty": -25, "description": "未提供议价话术或论据" },
+          { "type": "missing_market_data", "penalty": -15, "description": "未引用市场数据支撑议价" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-L1-001",
+      "name": "精确条件查询_小区+户型+价格",
+      "level": "L1",
+      "category": "general",
+      "description": "用户给出明确的房源要求：海淀小区的两居室，租金不超过8000元。Agent需准确返回符合所有条件的房源。",
+      "user_input": "帮我找海淀小区的两居室，租金预算不超过8000元。",
+      "simulation_setup": {
+        "required_houses": ["HF_1001", "HF_1002", "HF_1003"],
+        "conditions": {
+          "community": "海淀小区",
+          "bedrooms": 2
+        }
+      },
+      "expected_results": {
+        "houses": [
+          {
+            "house_id": "HF_1001",
+            "score": 50,
+            "expected_attributes": {
+              "price": 7500,
+              "community": "海淀小区",
+              "bedrooms": 2
+            }
+          },
+          {
+            "house_id": "HF_1002",
+            "score": 50,
+            "expected_attributes": {
+              "price": 7800,
+              "community": "海淀小区",
+              "bedrooms": 2
+            }
+          }
+        ],
+        "total_score": 100,
+        "complex_behavior": null,
+        "price_comparison": null,
+        "rules": [
+          { "type": "extra_house", "penalty": -10, "description": "每返回一个不在预期清单中的房源扣10分" },
+          { "type": "attribute_mismatch", "penalty": -5, "description": "预期房源的关键属性（如价格）错误，每个房源扣5分" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-L1-002",
+      "name": "多条件组合查询_朝向+楼层+面积+整租",
+      "level": "L1",
+      "category": "general",
+      "description": "用户要求朝南、中层（5-10层）、面积80-100平米、整租。Agent需正确组合条件并返回匹配房源。",
+      "user_input": "找一套朝南的中层（5-10层），面积80-100平米的整租房。",
+      "simulation_setup": {
+        "required_houses": ["HF_2001", "HF_2002", "HF_2003", "HF_2004", "HF_2005"]
+      },
+      "expected_results": {
+        "houses": [
+          { "house_id": "HF_2001", "score": 25 },
+          { "house_id": "HF_2002", "score": 25 },
+          { "house_id": "HF_2003", "score": 25 },
+          { "house_id": "HF_2004", "score": 25 }
+        ],
+        "total_score": 100,
+        "complex_behavior": null,
+        "price_comparison": null,
+        "rules": [
+          { "type": "extra_house", "penalty": -10, "description": "每多返回一个不符合条件的房源扣10分" },
+          { "type": "missing_house", "penalty": -25, "description": "每缺少一个预期房源扣25分" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-PRICE-001",
+      "name": "同房源跨平台比价_发现价格差异",
+      "level": "L2",
+      "category": "price_comparison",
+      "description": "用户在安居客看到一套房源，希望Agent帮忙查询该房源在其他平台的价格，发现58同城挂牌价更低，Agent应提醒用户并给出建议。",
+      "user_input": "我在安居客看到海淀小区这套两居室（ID: HF_1001）挂牌价7800元，你能帮我看看58同城上这个房子多少钱吗？",
+      "simulation_setup": {
+        "required_houses": ["HF_1001"],
+        "platform_data": {
+          "anjuke": {
+            "HF_1001": { "price": 7800, "listing_id": "AJK12345", "status": "available" }
+          },
+          "58": {
+            "HF_1001": { "price": 7500, "listing_id": "58_67890", "status": "available" }
+          },
+          "fangtianxia": {
+            "HF_1001": { "price": 7700, "listing_id": "FTX_24680", "status": "available" }
+          }
+        }
+      },
+      "expected_results": {
+        "houses": [],
+        "total_score": 100,
+        "complex_behavior": null,
+        "price_comparison": {
+          "target_house_id": "HF_1001",
+          "expected_price_analysis": {
+            "platform_prices": {
+              "anjuke": 7800,
+              "58": 7500,
+              "fangtianxia": 7700
+            },
+            "price_level": "偏高",
+            "negotiation_room": true,
+            "suggested_negotiation_range": {
+              "min": 300,
+              "max": 500
+            }
+          },
+          "expected_response_patterns": [
+            "58同城",
+            "7500元",
+            "便宜300",
+            "议价空间",
+            "建议"
+          ],
+          "requires_trend_analysis": false,
+          "requires_recommendation": true
+        },
+        "rules": [
+          { "type": "missing_platform_price", "penalty": -20, "description": "未提及任一平台的对比价格" },
+          { "type": "price_comparison_wrong", "penalty": -30, "description": "价格对比数据错误" },
+          { "type": "missing_negotiation_suggestion", "penalty": -25, "description": "未给出议价建议" },
+          { "type": "explanation_missing", "penalty": -15, "description": "解释不充分" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-PRICE-004",
+      "name": "价格异常预警+跨平台最优推荐",
+      "level": "L4",
+      "category": "price_comparison",
+      "description": "用户在单一平台看中房源，Agent通过多平台比价发现该房源价格明显高于其他平台同类型房源，且另一平台有更优选择，Agent应主动预警并推荐替代方案。",
+      "user_input": "我在58同城看上这套HF_3001，两居室8800元，帮我确认一下。",
+      "simulation_setup": {
+        "required_houses": ["HF_3001", "HF_3002", "HF_3003", "HF_3004"],
+        "platform_data": {
+          "58": {
+            "HF_3001": { "price": 8800, "community": "上地西里", "bedrooms": 2, "area": 82, "status": "available" }
+          },
+          "anjuke": {
+            "HF_3002": { "price": 8000, "community": "上地西里", "bedrooms": 2, "area": 80, "status": "available" },
+            "HF_3003": { "price": 8200, "community": "上地西里", "bedrooms": 2, "area": 83, "status": "available" }
+          },
+          "lianjia": {
+            "HF_3004": { "price": 7900, "community": "上地西里", "bedrooms": 2, "area": 78, "status": "available" }
+          }
+        },
+        "historical_prices": {
+          "community": "上地西里",
+          "two_bedroom_avg": 8000,
+          "last_month_avg": 7950,
+          "price_trend": "stable"
+        },
+        "dynamic_events": []
+      },
+      "expected_results": {
+        "houses": [
+          { "house_id": "HF_3002", "score": 30 },
+          { "house_id": "HF_3004", "score": 30 },
+          { "house_id": "HF_3003", "score": 20 }
+        ],
+        "total_score": 100,
+        "complex_behavior": null,
+        "price_comparison": {
+          "target_house_id": "HF_3001",
+          "expected_price_analysis": {
+            "platform_prices": {
+              "58": 8800,
+              "anjuke_avg": 8100,
+              "lianjia": 7900
+            },
+            "market_avg_price": 8025,
+            "price_level": "严重偏高",
+            "negotiation_room": true,
+            "suggested_negotiation_range": {
+              "min": 700,
+              "max": 900
+            }
+          },
+          "expected_response_patterns": [
+            "价格偏高",
+            "高出市场价",
+            "800元",
+            "建议考虑",
+            "安居客",
+            "链家",
+            "性价比更高"
+          ],
+          "requires_trend_analysis": true,
+          "requires_recommendation": true
+        },
+        "rules": [
+          { "type": "missing_price_warning", "penalty": -30, "description": "未主动预警价格异常" },
+          { "type": "missing_alternative_recommendation", "penalty": -30, "description": "未推荐替代房源" },
+          { "type": "wrong_price_analysis", "penalty": -20, "description": "价格分析错误" },
+          { "type": "missing_trend", "penalty": -10, "description": "未分析价格趋势" }
+        ]
+      }
+    },
+    {
+      "case_id": "TC-PRICE-002",
+      "name": "同区域比价_市场均价分析",
+      "level": "L3",
+      "category": "price_comparison",
+      "description": "用户看中一套房源，希望了解同小区类似户型的价格水平，判断是否合理。Agent需汇总多个平台同小区房源价格，给出市场均价和价格合理性判断。",
+      "user_input": "我想租西二旗智学苑的两居室，目前看中一套报价8500元，这个价格合理吗？帮我看看同小区其他房源什么价。",
+      "simulation_setup": {
+        "required_houses": ["HF_2001", "HF_2002", "HF_2003", "HF_2004", "HF_2005"],
+        "platform_data": {
+          "anjuke": {
+            "HF_2001": { "price": 8500, "community": "智学苑", "bedrooms": 2, "area": 78 },
+            "HF_2002": { "price": 8200, "community": "智学苑", "bedrooms": 2, "area": 75 }
+          },
+          "58": {
+            "HF_2003": { "price": 8000, "community": "智学苑", "bedrooms": 2, "area": 72 },
+            "HF_2004": { "price": 8300, "community": "智学苑", "bedrooms": 2, "area": 76 }
+          },
+          "lianjia": {
+            "HF_2005": { "price": 8100, "community": "智学苑", "bedrooms": 2, "area": 74 }
+          }
+        },
+        "historical_prices": [
+          { "month": "2025-11", "avg_price": 7900 },
+          { "month": "2025-12", "avg_price": 8050 },
+          { "month": "2026-01", "avg_price": 8150 }
+        ]
+      },
+      "expected_results": {
+        "houses": [],
+        "total_score": 100,
+        "complex_behavior": null,
+        "price_comparison": {
+          "target_house_id": "HF_2001",
+          "expected_price_analysis": {
+            "platform_prices": {
+              "anjuke_avg": 8350,
+              "58_avg": 8150,
+              "lianjia": 8100
+            },
+            "market_avg_price": 8220,
+            "price_level": "偏高",
+            "negotiation_room": true,
+            "suggested_negotiation_range": {
+              "min": 200,
+              "max": 400
+            }
+          },
+          "expected_response_patterns": [
+            "市场均价",
+            "8200元左右",
+            "偏高",
+            "议价",
+            "历史价格",
+            "上涨趋势"
+          ],
+          "requires_trend_analysis": true,
+          "requires_recommendation": true
+        },
+        "rules": [
+          { "type": "missing_market_avg", "penalty": -25, "description": "未计算或未提及市场均价" },
+          { "type": "avg_price_error", "penalty": -20, "description": "市场均价计算明显错误" },
+          { "type": "missing_trend", "penalty": -15, "description": "未分析价格趋势" },
+          { "type": "missing_negotiation_advice", "penalty": -20, "description": "未给出议价建议" }
+        ]
+      }
+    }
+  ]
+}
