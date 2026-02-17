@@ -10,10 +10,14 @@
 - **HTTP API**：对外提供RESTful接口
 
 ### 1.2 数据规模
-- 房源数量：33套
-- 覆盖区域：北京10个行政区
-- 价格区间：800-18000元/月
-- 地标数据：105个（50地铁站+30企业+25商圈）
+- 房源数量：以 data 目录下 database_2000.json（或 database.json）为准，如 100 套
+- 覆盖区域：北京多行政区（房山、朝阳、海淀、大兴、西城、昌平等）
+- 地标数据：subway_stations、fortune500_companies、landmarks（含 shopping/park 等类型）
+
+### 1.3 按用户隔离的状态（多用户互不影响）
+- **基础数据**：房源从 `database_*.json` 加载，只读不写。
+- **按用户覆盖**：每个用户拥有独立的状态覆盖层（userID → houseID → status）。用户 A 将某房改为「已租」仅影响 A 的视角，用户 B 仍按基础数据（或 B 自己的覆盖）看到该房。
+- **识别方式**：请求头 `X-User-ID` 标识当前用户，**所有房源相关接口均必填**。不带头时接口返回 400。带该头时，列表/详情/统计/按小区/附近房等接口按该用户视角返回「有效状态」；更新状态接口同样必带 `X-User-ID`。
 
 ---
 
@@ -44,12 +48,13 @@ type House struct {
     Subway           string   `json:"subway"`            // 地铁线路
     SubwayDistance   int      `json:"subway_distance"`   // 距地铁距离（米）
     SubwayStation    string   `json:"subway_station"`    // 最近地铁站
+    CommuteToXierqi  int      `json:"commute_to_xierqi"`  // 到西二旗通勤时间（分钟）
     AvailableFrom    string   `json:"available_from"`    // 可入住日期
     ListingPlatform  string   `json:"listing_platform"`  // 发布平台
     ListingURL       string   `json:"listing_url"`       // 房源链接
     Tags             []string `json:"tags"`              // 标签
     HiddenNoiseLevel string   `json:"hidden_noise_level"`// 噪音等级
-    Status           string   `json:"status"`            // 状态（只读）：available/rented/offline
+    Status           string   `json:"status"`            // 展示状态：available/rented/offline，按用户视角合并基础数据与覆盖
     Longitude        float64  `json:"longitude"`         // 经度
     Latitude         float64  `json:"latitude"`          // 纬度
     CoordinateSystem string   `json:"coordinate_system"` // 坐标系
@@ -103,6 +108,11 @@ type HouseQuery struct {
     MaxSubwayDist  int    // 最大地铁距离（米）
     SubwayStation  string // 指定地铁站
 
+    // 水电与通勤
+    UtilitiesType       string // 水电类型，如 民水民电
+    AvailableFromBefore string // 可入住日期上限，格式 2006-01-02
+    CommuteToXierqiMax  int    // 到西二旗通勤时间上限（分钟）
+
     // 地标距离（需配合地标ID使用）
     NearLandmarkID string  // 附近地标ID
     MaxDistance    float64 // 最大距离（米）
@@ -121,41 +131,58 @@ type HouseQuery struct {
 
 | 接口 | 方法 | 描述 |
 |------|------|------|
-| `/api/houses` | GET | 查询房屋列表（支持筛选） |
-| `/api/houses/{id}` | GET | 根据ID获取房屋详情 |
-| `/api/houses/nearby` | GET | 查询地标附近房屋 |
-| `/api/houses/stats` | GET | 获取房屋统计信息 |
+| `/api/houses` | GET | 查询房屋列表（支持筛选、排序、分页；**必带 X-User-ID**，按用户视角返回状态） |
+| `/api/houses/{id}` | GET | 根据ID获取房屋详情（**必带 X-User-ID**） |
+| `/api/houses/by_community` | GET | 按小区名查询可租房源（指代、地铁信息、隐性属性、在租状态；**必带 X-User-ID**） |
+| `/api/houses/nearby_landmarks` | GET | 某小区周边某类地标（商超/公园，按距离排序；**必带 X-User-ID**） |
+| `/api/houses/nearby` | GET | 查询地标附近房屋（**必带 X-User-ID**） |
+| `/api/houses/stats` | GET | 获取房屋统计信息（**必带 X-User-ID**，按用户视角统计 by_status） |
+| `/api/houses/{id}/status` | PUT/PATCH | 更新当前用户视角下该房源状态（available/rented/offline），**必须带 X-User-ID**；响应 data 为修改后的房源完整对象 |
+| `/api/houses/init` | POST | **初始化指定用户的房源数据**：清空该用户的状态覆盖，该用户视角恢复为初始状态。**必须带 X-User-ID** 指定要重置的用户。评测/比赛每启动新题目时调用。 |
 
 ---
 
 ## 4. HTTP API 详细设计
+
+### 4.0 公共请求头（用户隔离）
+
+| 请求头 | 必填 | 说明 |
+|--------|------|------|
+| X-User-ID | **是**（所有房源接口） | 当前用户标识。不带头时接口返回 400。带该头时，列表/详情/统计/按小区/附近房返回该用户视角下的 status；更新状态接口同样必填。 |
 
 ### 4.1 查询房屋列表
 
 **请求：**
 ```
 GET /api/houses?district=海淀&min_price=3000&max_price=8000&bedrooms=2,3&page=1&page_size=10
+Header: X-User-ID: user_001   （必填）
 ```
 
 **参数：**
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| district | string | 否 | 行政区，如"海淀" |
-| area | string | 否 | 商圈，如"西二旗" |
-| min_price | int | 否 | 最低价格 |
-| max_price | int | 否 | 最高价格 |
-| bedrooms | string | 否 | 卧室数，如"1,2,3" |
+| district | string | 否 | 行政区，逗号分隔，如 "海淀,朝阳" |
+| area | string | 否 | 商圈，逗号分隔，如 "西二旗,上地" |
+| min_price | int | 否 | 最低价格（元/月） |
+| max_price | int | 否 | 最高价格（元/月） |
+| bedrooms | string | 否 | 卧室数，逗号分隔，如 "1,2" |
 | rental_type | string | 否 | 整租/合租 |
-| decoration | string | 否 | 简装/精装/豪华 |
-| elevator | bool | 否 | 是否有电梯 |
-| subway_line | string | 否 | 地铁线路 |
-| max_subway_dist | int | 否 | 最大地铁距离 |
-| near_landmark | string | 否 | 附近地标ID |
-| max_distance | int | 否 | 最大距离（米） |
-| sort_by | string | 否 | price/area/distance |
+| decoration | string | 否 | 精装/简装 |
+| orientation | string | 否 | 朝向，如 朝南/朝东/南北 |
+| elevator | string | 否 | 是否有电梯，true/false |
+| min_area | int | 否 | 最小面积（平米） |
+| max_area | int | 否 | 最大面积（平米） |
+| property_type | string | 否 | 物业类型，如 住宅 |
+| subway_line | string | 否 | 地铁线路，如 13号线 |
+| max_subway_dist | int | 否 | 最大地铁距离（米），近地铁建议 800 |
+| subway_station | string | 否 | 地铁站名，如 车公庄站 |
+| utilities_type | string | 否 | 水电类型，如 民水民电 |
+| available_from_before | string | 否 | 可入住日期上限，格式 YYYY-MM-DD，如 2026-03-10 |
+| commute_to_xierqi_max | int | 否 | 到西二旗通勤时间上限（分钟） |
+| sort_by | string | 否 | 排序字段：price/area/subway |
 | sort_order | string | 否 | asc/desc |
 | page | int | 否 | 页码，默认1 |
-| page_size | int | 否 | 每页数量，默认20 |
+| page_size | int | 否 | 每页数量，默认20，最大100 |
 
 **响应：**
 ```json
@@ -209,6 +236,11 @@ GET /api/houses/HF_2001
     "price": 8500,
     "price_unit": "元/月",
     "status": "available",
+    "subway": "13号线/昌平线",
+    "subway_station": "西二旗站",
+    "subway_distance": 800,
+    "commute_to_xierqi": 14,
+    "hidden_noise_level": "安静",
     "longitude": 116.3289,
     "latitude": 40.0567,
     ...
@@ -216,18 +248,109 @@ GET /api/houses/HF_2001
 }
 ```
 
-### 4.3 查询附近房屋
+### 4.3 按小区名查房源
+
+用于指代消解（如「建清园那套还在吗」）、查询某小区地铁信息、隐性属性（如是否吵）等。返回该小区下所有可租房源（status=available），每条含完整字段（含 subway_*、commute_to_xierqi、hidden_noise_level）。
 
 **请求：**
 ```
-GET /api/houses/nearby?landmark_id=SS_001&max_distance=2000&sort_by=distance
+GET /api/houses/by_community?community=建清园(南区)
 ```
 
 **参数：**
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| landmark_id | string | 是 | 地标ID |
-| max_distance | int | 否 | 最大距离（米），默认2000 |
+| community | string | 是 | 小区名，与数据集中 community 字段精确匹配，如 建清园(南区)、保利锦上(二期) |
+
+**响应：**
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "total": 1,
+    "page": 1,
+    "page_size": 1,
+    "items": [
+      {
+        "house_id": "HF_3",
+        "community": "建清园(南区)",
+        "district": "海淀",
+        "area": "学院路",
+        "subway": "昌平线",
+        "subway_station": "学院桥站",
+        "subway_distance": 1200,
+        "commute_to_xierqi": 18,
+        "hidden_noise_level": "安静",
+        "status": "available",
+        ...
+      }
+    ]
+  }
+}
+```
+
+**错误响应：** 缺少 community 时返回 400。
+
+### 4.4 某小区周边地标（商超/公园）
+
+以该小区内第一套房源的经纬度为基准点，查询周边某类地标（如 shopping、park），返回在指定距离内的地标列表并按距离排序。依赖 LandmarkManager.FindLandmarksNearPoint，数据来自 landmarks.json（type=shopping/park）。
+
+**请求：**
+```
+GET /api/houses/nearby_landmarks?community=保利锦上(二期)&type=shopping&max_distance_m=3000
+```
+
+**参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| community | string | 是 | 小区名，用于定位基准点（取该小区首套房源坐标） |
+| type | string | 否 | 地标类型：shopping（商超）/ park（公园），不传则不过滤类型 |
+| max_distance_m | float | 否 | 最大距离（米），默认 3000 |
+
+**响应：**
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "community": "保利锦上(二期)",
+    "type": "shopping",
+    "total": 2,
+    "items": [
+      {
+        "landmark": {
+          "id": "LM_002",
+          "name": "国贸商城",
+          "category": "landmark",
+          "district": "朝阳",
+          "longitude": 116.4623,
+          "latitude": 39.9106,
+          "details": { "type": "shopping", "type_name": "购物中心", ... }
+        },
+        "distance": 1250.5
+      }
+    ]
+  }
+}
+```
+
+若地标服务不可用返回 503；若小区无房源则 items 为空数组、total=0。
+
+### 4.5 查询附近房屋
+
+以地标为圆心，查询在指定距离内的可租房源，返回带直线距离、步行距离、步行时间。
+
+**请求：**
+```
+GET /api/houses/nearby?landmark_id=SS_001&max_distance=2000
+```
+
+**参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| landmark_id | string | 是 | 地标ID或地标名称（支持按名称查找） |
+| max_distance | float | 否 | 最大直线距离（米），默认 2000 |
 
 **响应：**
 ```json
@@ -256,11 +379,12 @@ GET /api/houses/nearby?landmark_id=SS_001&max_distance=2000&sort_by=distance
 }
 ```
 
-### 4.4 获取统计信息
+### 4.6 获取统计信息
 
 **请求：**
 ```
 GET /api/houses/stats
+Header: X-User-ID: user_001   （必填，按该用户视角统计 by_status）
 ```
 
 **响应：**
@@ -301,6 +425,63 @@ GET /api/houses/stats
   }
 }
 ```
+
+### 4.7 更新当前用户视角下房源状态
+
+用于「用户租赁/下架」等操作，仅影响该用户视角，其他用户不受影响。
+
+**请求：**
+```
+PUT /api/houses/HF_2001/status
+Header: X-User-ID: user_001   （必填）
+Content-Type: application/json
+
+{"status": "rented"}
+```
+
+**请求体：**
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| status | string | 是 | 取值：available / rented / offline |
+
+**响应（成功）：** `data` 为**修改后的房源完整对象**（与 GET /api/houses/{id} 结构一致，含更新后的 status），便于评测集构造与前端展示。
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": { "house_id": "HF_2001", "community": "...", "status": "rented", ... }
+}
+```
+
+**错误：**
+- 400：未提供 X-User-ID、缺少 status、或 status 非法
+- 404：房屋不存在
+
+### 4.8 初始化指定用户的房源数据
+
+用于评测或比赛时，每启动一个新题目前，将**指定用户**的房源视角恢复为初始状态（清空该用户的租赁/退租等状态覆盖），不影响其他用户。
+
+**请求：**
+```
+POST /api/houses/init
+Header: X-User-ID: eval_user   （必填，指定要初始化的用户）
+```
+
+**响应（成功）：**
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "action": "reset_user",
+    "user_id": "eval_user",
+    "message": "该用户状态覆盖已清空，房源恢复为初始状态"
+  }
+}
+```
+
+**错误：**
+- 400：未提供 X-User-ID
 
 ---
 
@@ -344,46 +525,37 @@ func estimateWalkingDuration(walkingDist float64) int {
 
 ### 5.3 筛选匹配逻辑
 
+**实现对应：** 实际代码为 `matchQuery(house *House, query *HouseQuery, effectiveStatus string) bool`。先按「有效状态」筛：`effectiveStatus` 非空时用其与 `available` 比较，否则用 `house.Status`，**仅展示可租房源**（status=available）。再按下列条件匹配。
+
 ```go
-func matchHouse(house *House, query *HouseQuery) bool {
-    // 价格范围
-    if query.MinPrice > 0 && house.Price < query.MinPrice {
+// 伪代码：与 house.go matchQuery 对齐，effectiveStatus 由上层传入（用户视角下的状态）
+func matchQuery(house *House, query *HouseQuery, effectiveStatus string) bool {
+    statusCheck := house.Status
+    if effectiveStatus != "" {
+        statusCheck = effectiveStatus
+    }
+    if statusCheck != "available" {
         return false
     }
-    if query.MaxPrice > 0 && house.Price > query.MaxPrice {
-        return false
-    }
-
-    // 行政区
-    if len(query.Districts) > 0 && !contains(query.Districts, house.District) {
-        return false
-    }
-
-    // 卧室数
-    if len(query.Bedrooms) > 0 && !containsInt(query.Bedrooms, house.Bedrooms) {
-        return false
-    }
-
-    // 租赁类型
-    if query.RentalType != "" && house.RentalType != query.RentalType {
-        return false
-    }
-
-    // 电梯
-    if query.Elevator != nil && house.Elevator != *query.Elevator {
-        return false
-    }
-
-    // 地铁距离
-    if query.MaxSubwayDist > 0 && house.SubwayDistance > query.MaxSubwayDist {
-        return false
-    }
-
-    // 地铁线路
-    if query.SubwayLine != "" && !strings.Contains(house.Subway, query.SubwayLine) {
-        return false
-    }
-
+    // 价格、行政区、商圈、卧室数、租赁类型、装修、电梯、朝向、面积、物业类型
+    if query.MinPrice > 0 && house.Price < query.MinPrice { return false }
+    if query.MaxPrice > 0 && house.Price > query.MaxPrice { return false }
+    if len(query.Districts) > 0 && !contains(query.Districts, house.District) { return false }
+    if len(query.Areas) > 0 && !contains(query.Areas, house.Area) { return false }
+    if len(query.Bedrooms) > 0 && !containsInt(query.Bedrooms, house.Bedrooms) { return false }
+    if query.RentalType != "" && house.RentalType != query.RentalType { return false }
+    if query.Decoration != "" && house.Decoration != query.Decoration { return false }
+    if query.Elevator != nil && house.Elevator != *query.Elevator { return false }
+    if query.Orientation != "" && house.Orientation != query.Orientation { return false }
+    if query.MinArea > 0 && int(house.AreaSqm) < query.MinArea { return false }
+    if query.MaxArea > 0 && int(house.AreaSqm) > query.MaxArea { return false }
+    if query.PropertyType != "" && house.PropertyType != query.PropertyType { return false }
+    if query.MaxSubwayDist > 0 && house.SubwayDistance > query.MaxSubwayDist { return false }
+    if query.SubwayLine != "" && !strings.Contains(house.Subway, query.SubwayLine) { return false }
+    if query.SubwayStation != "" && house.SubwayStation != query.SubwayStation { return false }
+    if query.UtilitiesType != "" && house.UtilitiesType != query.UtilitiesType { return false }
+    if query.AvailableFromBefore != "" && house.AvailableFrom > query.AvailableFromBefore { return false }
+    if query.CommuteToXierqiMax > 0 && house.CommuteToXierqi > query.CommuteToXierqiMax { return false }
     return true
 }
 ```
@@ -394,21 +566,29 @@ func matchHouse(house *House, query *HouseQuery) bool {
 
 ```
 fake_app/
-├── house.go                 # 房屋数据模型和管理器
-├── house_manager.go         # 房屋管理核心逻辑
-├── house_query.go           # 查询条件和筛选逻辑
-├── landmark.go              # 地标数据模型
+├── house.go                 # 房屋数据模型、HouseQuery、HouseManager（加载、Query、QueryWithPagination、GetByID、GetAll、GetStatistics、GetByCommunity、FindNearby、effectiveStatus、UpdateStatusForUser、按用户状态覆盖）
+├── landmark.go              # 地标数据模型、LandmarkManager（含 FindLandmarksNearPoint、Reload）
 └── data/
-    ├── database.json        # 房源数据
-    ├── subway_stations.json # 地铁站数据
+    ├── database_2000.json   # 房源数据（1～2000 条）
+    ├── database_4000.json   # 房源数据（2001～4000 条，可选）
+    ├── database_6000.json   # 等 database_数字.json，按数字升序合并加载
+    ├── database.json        # 兼容旧版单文件（若有则参与合并，同 id 后加载覆盖）
+    ├── subway_stations.json
     ├── fortune500_companies.json # 企业数据
-    └── landmarks.json       # 商圈地标数据
+    └── landmarks.json       # 商圈地标数据（含 type=shopping/park）
 
 gateway/handler/
 ├── handler.go               # 主处理器
-├── house_handler.go         # 房屋HTTP接口处理器
-└── landmark_handler.go      # 地标HTTP接口处理器
+├── house_handler.go         # 房屋 HTTP 接口（含 by_community、nearby_landmarks）
+└── landmark_handler.go      # 地标 HTTP 接口
 ```
+
+### 6.1 房源数据加载规则
+
+- **不固定文件名**：扫描 `data` 目录下所有 `database_数字.json`（如 database_2000.json、database_4000.json、database_6000.json）及可选 `database.json`。
+- **按数字升序合并**：将 `database_数字.json` 按数字升序依次加载并合并到内存（同 `house_id` 时后加载的覆盖先加载的）。
+- **database.json**：若存在则参与合并，视为数字序号最小（与 Python 生成脚本约定一致时，可仅使用 database_数字.json）。
+- **单文件读错**：某个文件读取或解析失败时跳过并打日志，不中断整体加载；至少有一个文件成功且最终 `len(houses)>0` 即成功。
 
 ---
 
@@ -417,8 +597,13 @@ gateway/handler/
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
 | v1.0 | 2026-02-15 | 初始版本，完整租房查询方案设计 |
+| v1.1 | 2026-02-17 | 新增 House.CommuteToXierqi；HouseQuery 增加 UtilitiesType、AvailableFromBefore、CommuteToXierqiMax；新增 GET /api/houses/by_community、GET /api/houses/nearby_landmarks；4.1 参数表补全 |
+| v1.2 | 2026-02-17 | 房源数据加载改为不固定文件名：自动发现并合并所有 database_数字.json（按数字升序），可选 database.json；见 6.1 |
+| v1.3 | 2026-02-17 | 按用户隔离状态：1.3 节、4.0 公共请求头 X-User-ID；新增 PUT/PATCH /api/houses/{id}/status；接口表与 4.7 更新 |
+| v1.4 | 2026-02-17 | 与实现对齐：5.3 筛选逻辑改为 matchQuery(house, query, effectiveStatus)，含 status=available 及 Areas/Decoration/Orientation/UtilitiesType/AvailableFromBefore/CommuteToXierqiMax 等；6 文件结构补充 house.go/landmark.go 能力描述 |
+| v1.5 | 2026-02-17 | 新增 POST /api/houses/init：按用户初始化房源数据（清空该用户状态覆盖），3.2 接口表与 4.8 节 |
 
 ---
 
-*文档版本：v1.0*
-*模块路径：github.com/ocProxy/fake_app*
+*文档版本：v1.5*
+*模块路径：ocProxy/fake_app*

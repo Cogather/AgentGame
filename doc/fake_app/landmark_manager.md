@@ -36,7 +36,7 @@ type Landmark struct {
     District  string                 // 所属行政区
     Longitude float64                // 经度（WGS84）
     Latitude  float64                // 纬度（WGS84）
-    RawData   map[string]interface{} // 原始详细数据
+    RawData   map[string]interface{} // 原始详细数据（HTTP 响应中序列化为 "details"）
 }
 ```
 
@@ -75,6 +75,17 @@ type Landmark struct {
 | type_name | string | 类型中文名 |
 | address | string | 详细地址 |
 | nearby_subway | string | 附近地铁站 |
+
+### 2.4 带距离的地标（LandmarkWithDistance）
+
+用于「某点周边地标」查询结果，由 `FindLandmarksNearPoint` 返回。
+
+```go
+type LandmarkWithDistance struct {
+    Landmark Landmark `json:"landmark"` // 地标信息
+    Distance float64  `json:"distance"` // 与给定点的直线距离（米）
+}
+```
 
 ---
 
@@ -149,6 +160,30 @@ fmt.Printf("总计: %d\n", stats["total"])
 fmt.Printf("地铁站: %d\n", stats["by_category"].(map[string]int)["subway"])
 ```
 
+### 3.6 按点查询周边地标（FindLandmarksNearPoint）
+
+根据给定经纬度，查询在指定距离内的某类地标（如商超、公园），结果按距离升序。仅遍历 `CategoryLandmark`（landmarks.json），并按 `RawData["type"]` 过滤；用于「某小区周边商超/公园」等场景（由房屋模块传入该小区房源坐标后调用）。
+
+```go
+// 查询 (lat, lng) 周边 3000 米内的 shopping 类地标
+results := manager.FindLandmarksNearPoint(39.8667, 116.5103, 3000, "shopping")
+for _, r := range results {
+    fmt.Printf("%s: %.0f 米\n", r.Landmark.Name, r.Distance)
+}
+
+// typeFilter 为空则不过滤类型，仅按距离
+allNearby := manager.FindLandmarksNearPoint(39.9, 116.4, 5000, "")
+```
+
+**参数说明：**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| lat, lng | float64 | 基准点纬度、经度（WGS84） |
+| maxDistanceM | float64 | 最大直线距离（米） |
+| typeFilter | string | 地标类型过滤，如 "shopping"、"park"；空字符串表示不过滤 |
+
+**返回：** `[]*LandmarkWithDistance`，按 `Distance` 升序。
+
 ---
 
 ## 4. HTTP API 接口
@@ -159,15 +194,23 @@ fmt.Printf("地铁站: %d\n", stats["by_category"].(map[string]int)["subway"])
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/landmarks` | 获取全部地标（支持筛选） |
+| GET | `/api/landmarks` | 获取全部地标（支持 category、district 筛选） |
 | GET | `/api/landmarks/name/{name}` | 按名称精确查询 |
 | GET | `/api/landmarks/search?q={keyword}` | 关键词模糊搜索 |
 | GET | `/api/landmarks/{id}` | 根据ID获取详情 |
 | GET | `/api/landmarks/stats` | 获取统计信息 |
 
+**与房屋模块的联合接口（某小区周边地标）**：  
+按「小区名 → 房源坐标 → 周边地标」的查询由房屋模块暴露，内部会调用 `LandmarkManager.FindLandmarksNearPoint`。详见《租房信息查询系统设计方案》4.4 节：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/houses/nearby_landmarks?community=xxx&type=shopping\|park&max_distance_m=3000` | 某小区周边商超/公园，返回带距离的地标列表 |
+
 **架构说明**：
 - 数据模型和核心逻辑位于 `fake_app/` 包
-- HTTP 接口处理位于 `gateway/handler/landmark_handler.go`
+- 地标 HTTP 接口位于 `gateway/handler/landmark_handler.go`
+- 某小区周边地标 HTTP 接口位于 `gateway/handler/house_handler.go`（GetNearbyLandmarks），依赖 HouseManager + LandmarkManager
 - 主 Handler 在 `gateway/handler/handler.go` 中统一管理所有路由
 
 ### 4.2 响应格式
@@ -205,6 +248,8 @@ GET /api/landmarks?district=海淀
 |------|------|------|------|
 | category | string | 否 | 筛选类别：subway/company/landmark |
 | district | string | 否 | 筛选行政区，如"海淀"、"朝阳" |
+
+**实现说明：** 若同时传 `category` 与 `district`，以 `category` 为准（先按类别筛，否则按行政区，否则返回全部）。
 
 **响应示例：**
 ```json
@@ -386,7 +431,7 @@ fake_app/data/
 ### 5.3 数据更新
 
 ```go
-// 运行时重新加载数据（支持热更新）
+// 运行时重新加载数据（支持热更新，仅 Go API，未提供 HTTP 接口）
 err := manager.Reload()
 ```
 
@@ -600,6 +645,7 @@ func calcDistance(lat1, lng1, lat2, lng2 float64) float64 {
 | GetByDistrict | district string | []*Landmark | 按行政区查询 |
 | GetByID | id string | *Landmark | 按ID查询 |
 | GetStatistics | - | map[string]interface{} | 获取统计 |
+| FindLandmarksNearPoint | lat, lng, maxDistanceM float64, typeFilter string | []*LandmarkWithDistance | 某点周边某类地标（如 shopping/park），按距离排序 |
 | Reload | - | error | 重新加载数据 |
 
 ### 10.2 LandmarkHandler HTTP接口
@@ -613,6 +659,8 @@ func calcDistance(lat1, lng1, lat2, lng2 float64) float64 {
 | GET | SearchByKeyword | /api/landmarks/search | 模糊搜索 |
 | GET | GetByID | /api/landmarks/{id} | 按ID查询 |
 | GET | GetStatistics | /api/landmarks/stats | 统计信息 |
+
+**与房屋模块联合**：某小区周边地标由 `house_handler.GetNearbyLandmarks` 提供，路径 `GET /api/houses/nearby_landmarks?community=&type=&max_distance_m=`，内部调用 `LandmarkManager.FindLandmarksNearPoint`。详见《租房信息查询系统设计方案》4.4。
 
 **初始化方式**:
 ```go
@@ -638,8 +686,10 @@ if h.landmarkHandler != nil {
 | v1.0 | 2026-02-15 | 初始版本，支持地铁站/企业/地标三类数据管理 |
 | v1.1 | 2026-02-15 | 新增HTTP RESTful API接口，支持远端查询 |
 | v1.2 | 2026-02-15 | HTTP接口迁移至gateway模块统一管理 |
+| v1.3 | 2026-02-17 | 新增 LandmarkWithDistance、FindLandmarksNearPoint；4.1 补充与房屋模块联合接口 GET /api/houses/nearby_landmarks 说明 |
+| v1.4 | 2026-02-17 | 与实现对齐：2.2 RawData 在 HTTP 响应中为 details；4.3.1 GET /api/landmarks 同时传 category 与 district 时以 category 为准；5.3 Reload 仅 Go API、未提供 HTTP 接口 |
 
 ---
 
-*文档版本：v1.1*
-*模块路径：github.com/ocProxy/fake_app*
+*文档版本：v1.4*
+*模块路径：ocProxy/fake_app*

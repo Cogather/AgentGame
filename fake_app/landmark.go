@@ -12,6 +12,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -76,6 +77,12 @@ type BusinessLandmark struct {
 	Latitude     float64 `json:"latitude"`
 	Category     string  `json:"category"`
 	NearbySubway string  `json:"nearby_subway"`
+}
+
+// LandmarkWithDistance 带距离的地标，用于「某点周边地标」查询
+type LandmarkWithDistance struct {
+	Landmark Landmark `json:"landmark"`
+	Distance float64  `json:"distance"` // 直线距离（米）
 }
 
 // LandmarkManager 地标数据管理器
@@ -282,6 +289,37 @@ func (lm *LandmarkManager) loadLandmarks() error {
 
 	log.Printf("[LandmarkManager] 加载 %d 个地标", len(landmarks))
 	return nil
+}
+
+// FindLandmarksNearPoint 查询某点周边某类地标，距离不超过 maxDistanceM 米，按距离排序
+// typeFilter 为空则不过滤类型；否则只保留 RawData["type"] == typeFilter 的 CategoryLandmark（如 shopping、park）
+func (lm *LandmarkManager) FindLandmarksNearPoint(lat, lng, maxDistanceM float64, typeFilter string) []*LandmarkWithDistance {
+	lm.mu.RLock()
+	defer lm.mu.RUnlock()
+
+	var results []*LandmarkWithDistance
+	for _, landmark := range lm.landmarks {
+		if landmark.Category != CategoryLandmark {
+			continue
+		}
+		if typeFilter != "" {
+			typ, _ := landmark.RawData["type"].(string)
+			if typ != typeFilter {
+				continue
+			}
+		}
+		dist := calcDistance(landmark.Latitude, landmark.Longitude, lat, lng)
+		if dist <= maxDistanceM {
+			results = append(results, &LandmarkWithDistance{
+				Landmark: *landmark,
+				Distance: dist,
+			})
+		}
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Distance < results[j].Distance
+	})
+	return results
 }
 
 // GetByName 根据名称查询地标（精确匹配）

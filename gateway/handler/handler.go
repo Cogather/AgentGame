@@ -102,7 +102,7 @@ func NewHandler(svc *service.ProxyService, cfg *config.Config) (*Handler, error)
 		log.Printf("[警告] 初始化房屋管理器失败: %v，房屋查询功能不可用", err)
 	} else {
 		houseHandler = NewHouseHandler(houseManager, landmarkManager)
-		log.Printf("[HouseManager] 初始化完成，共 %d 套房源", len(houseManager.GetAll()))
+		log.Printf("[HouseManager] 初始化完成，共 %d 套房源", len(houseManager.GetAll("")))
 	}
 
 	return &Handler{
